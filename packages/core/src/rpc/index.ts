@@ -14,6 +14,11 @@ import {
   getLogsRetryHelper,
 } from "@ponder/utils";
 import {
+  type Shred,
+  type ShredsWebSocketTransport,
+  shredsWebSocket,
+} from "shreds/viem";
+import {
   http,
   type EIP1193Parameters,
   type EIP1193RequestFn,
@@ -25,7 +30,6 @@ import {
   type PublicRpcSchema,
   type RpcError,
   TimeoutError,
-  type WebSocketTransport,
   isHex,
   webSocket,
 } from "viem";
@@ -45,6 +49,10 @@ export type Rpc = {
     onError: (error: Error) => void;
     polling?: boolean;
   }) => Promise<void>;
+  riseSubscribe: (params: {
+    onShred: (shred: Shred) => ReturnType<RealtimeSync["syncShred"]>;
+    onError: (error: Error) => void;
+  }) => void;
   unsubscribe: () => Promise<void>;
 };
 
@@ -234,13 +242,16 @@ export const createRpc = ({
     ];
   }
 
-  let wsTransport: ReturnType<WebSocketTransport> | undefined = undefined;
+  let wsTransport: ReturnType<ShredsWebSocketTransport> | undefined = undefined;
 
   if (typeof chain.ws === "string") {
     const protocol = new url.URL(chain.ws).protocol;
 
     if (protocol === "wss:" || protocol === "ws:") {
-      wsTransport = webSocket(chain.ws, { keepAlive: true, reconnect: false })({
+      wsTransport = shredsWebSocket(chain.ws, {
+        keepAlive: true,
+        reconnect: false,
+      })({
         chain: chain.viemChain,
         retryCount: 0,
         timeout: 5_000,
@@ -592,6 +603,111 @@ export const createRpc = ({
             common.logger.debug({
               service: "rpc",
               msg: `Failed '${chain.name}' eth_subscribe request, retrying after ${duration} milliseconds`,
+              error,
+            });
+            await wait(duration);
+          }
+        }
+      }
+    },
+    async riseSubscribe({ onError, onShred }) {
+      if (!wsTransport) {
+        common.logger.fatal({
+          service: "rpc",
+          msg: "A websocket connection is required to subscribe to shreds. Exiting",
+        });
+        process.exit(1);
+      }
+
+      for (let i = 0; i <= RETRY_COUNT; ++i) {
+        try {
+          await wsTransport.value!.riseSubscribe({
+            params: [],
+            onData: async (data) => {
+              if (!data) {
+                common.logger.warn({
+                  service: "rpc",
+                  msg: "Missing data from rise_subscribe",
+                });
+              } else if (
+                data.error === undefined &&
+                data.result !== undefined
+              ) {
+                onShred(data.result);
+
+                common.logger.debug({
+                  service: "rpc",
+                  msg: `Received successful '${chain.name}' shred subscription data`,
+                });
+                webSocketErrorCount = 0;
+              } else {
+                const error = data.error as Error;
+
+                if (webSocketErrorCount === RETRY_COUNT) {
+                  common.logger.fatal({
+                    service: "rpc",
+                    msg: `Failed '${chain.name}' shred subscription after ${webSocketErrorCount + 1} consecutive errors. Switching to polling`,
+                    error,
+                  });
+
+                  await disconnect();
+
+                  process.exit(1);
+                } else {
+                  common.logger.debug({
+                    service: "rpc",
+                    msg: `Received '${chain.name}' shred subscription error`,
+                    error,
+                  });
+                }
+
+                webSocketErrorCount += 1;
+              }
+            },
+            onError: async (_error) => {
+              const error = _error as Error;
+
+              if (webSocketErrorCount === RETRY_COUNT) {
+                common.logger.fatal({
+                  service: "rpc",
+                  msg: `Failed '${chain.name}' shreds subscription after ${webSocketErrorCount + 1} consecutive errors.`,
+                  error,
+                });
+
+                await disconnect();
+
+                process.exit(1);
+              } else {
+                common.logger.debug({
+                  service: "rpc",
+                  msg: `Failed '${chain.name}' shreds subscription`,
+                  error,
+                });
+
+                webSocketErrorCount += 1;
+
+                await disconnect();
+
+                rpc.riseSubscribe({ onError, onShred });
+              }
+            },
+          });
+        } catch (_error) {
+          const error = _error as Error;
+
+          if (i === RETRY_COUNT) {
+            common.logger.warn({
+              service: "rpc",
+              msg: `Failed '${chain.name}' rise_subscribe request after ${i + 1} consecutive errors. Exiting`,
+              error,
+            });
+
+            process.exit(1);
+          } else {
+            const duration = BASE_DURATION * 2 ** i;
+            common.logger.debug({
+              service: "rpc",
+              msg: `Failed '${chain.name}' rise_subscribe request, retrying after ${duration} milliseconds`,
               error,
             });
             await wait(duration);
