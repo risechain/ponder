@@ -48,7 +48,14 @@ import {
   validateTransactionsAndBlock,
 } from "@/utils/rpc.js";
 import { wait } from "@/utils/wait.js";
-import { type Address, type Hash, hexToNumber, zeroHash } from "viem";
+import type { Shred } from "shreds/viem";
+import {
+  type Address,
+  type Hash,
+  hexToNumber,
+  numberToHex,
+  zeroHash,
+} from "viem";
 import { isFilterInBloom, isInBloom, zeroLogsBloom } from "./bloom.js";
 
 export type RealtimeSync = {
@@ -58,6 +65,7 @@ export type RealtimeSync = {
    * @param block - The block to reconcile.
    */
   sync(block: SyncBlock | SyncBlockHeader): Promise<SyncResult>;
+  syncShred(shred: Shred): Promise<SyncShredResult>;
   onError(error: Error): void;
   /**
    * Local chain of blocks that have not been finalized.
@@ -65,6 +73,10 @@ export type RealtimeSync = {
   unfinalizedBlocks: LightBlock[];
   childAddresses: Map<FactoryId, Map<Address, number>>;
 };
+
+type SyncShredResult =
+  | { type: "rejected" }
+  | { type: "accepted"; shredPromise: Promise<void> };
 
 /**
  * @dev Each "promise" property resolves when the corresponding
@@ -88,6 +100,11 @@ export type BlockWithEventData = {
   childAddresses: Map<Factory, Set<Address>>;
 };
 
+export type ShredWithEventData = {
+  shred: Omit<Shred, "transactions" | "stateChanges">;
+  logs: SyncLog[];
+};
+
 export type RealtimeSyncEvent =
   | ({
       type: "block";
@@ -101,7 +118,11 @@ export type RealtimeSyncEvent =
       type: "reorg";
       block: LightBlock;
       reorgedBlocks: LightBlock[];
-    };
+    }
+  | ({
+      type: "shred";
+      hasMatchedFilter: boolean;
+    } & ShredWithEventData);
 
 type CreateRealtimeSyncParameters = {
   common: Common;
@@ -1133,9 +1154,51 @@ export const createRealtimeSync = (
     }
   };
 
+  const reconcileShred = (shred: Shred) => {
+    const logs = shred.transactions.flatMap(({ logs, hash }, i) =>
+      logs.map(
+        (log, j) =>
+          ({
+            ...log,
+            topics: log.topics as SyncLog["topics"],
+            logIndex: numberToHex(j),
+            removed: false,
+            blockNumber: numberToHex(shred.blockNumber),
+            transactionIndex: numberToHex(i),
+            blockHash: numberToHex(shred.blockNumber),
+            transactionHash: hash,
+          }) satisfies SyncLog,
+      ),
+    );
+
+    const filteredLogs = logs.filter((log) => {
+      let isMatched = false;
+
+      for (const filter of logFilters) {
+        if (isLogFilterMatched({ filter, log })) {
+          isMatched = true;
+          if (log.transactionHash !== zeroHash) {
+            requiredTransactions.add(log.transactionHash);
+            if (shouldGetTransactionReceipt(filter)) {
+              requiredTransactionReceipts.add(log.transactionHash);
+
+              // skip to next log
+              break;
+            }
+          }
+        }
+      }
+
+      return isMatched;
+    });
+  };
+
   return {
     sync(block) {
       return fetchAndReconcileLatestBlock(block);
+    },
+    syncShred(shred) {
+      return reconcileShred(shred);
     },
     onError,
     get unfinalizedBlocks() {
