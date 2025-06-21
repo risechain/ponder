@@ -48,7 +48,14 @@ import {
   validateTransactionsAndBlock,
 } from "@/utils/rpc.js";
 import { wait } from "@/utils/wait.js";
-import { type Address, type Hash, hexToNumber, zeroHash } from "viem";
+import type { Shred } from "shreds/viem";
+import {
+  type Address,
+  type Hash,
+  hexToNumber,
+  numberToHex,
+  zeroHash,
+} from "viem";
 import { isFilterInBloom, isInBloom, zeroLogsBloom } from "./bloom.js";
 
 export type RealtimeSync = {
@@ -75,6 +82,11 @@ export type BlockWithEventData = {
   childAddresses: Map<Factory, Set<Address>>;
 };
 
+export type ShredWithEventData = {
+  shred: Omit<Shred, "transactions" | "stateChanges">;
+  logs: SyncLog[];
+};
+
 export type RealtimeSyncEvent =
   | ({
       type: "block";
@@ -89,7 +101,11 @@ export type RealtimeSyncEvent =
       type: "reorg";
       block: LightBlock;
       reorgedBlocks: LightBlock[];
-    };
+    }
+  | ({
+      type: "shred";
+      hasMatchedFilter: boolean;
+    } & ShredWithEventData);
 
 type CreateRealtimeSyncParameters = {
   common: Common;
