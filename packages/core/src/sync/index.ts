@@ -7,6 +7,7 @@ import type {
   FactoryId,
   Filter,
   IndexingBuild,
+  InternalBlock,
   LightBlock,
   RawEvent,
   Seconds,
@@ -97,6 +98,12 @@ export type RealtimeEvent =
       type: "finalize";
       chain: Chain;
       checkpoint: string;
+    }
+  | {
+      type: "shred";
+      chain: Chain;
+      events: Event[];
+      checkpoints: { chainId: number; checkpoint: string }[];
     };
 
 type EventGenerator = AsyncGenerator<{
@@ -821,6 +828,63 @@ export const createSync = async (params: {
         break;
       }
 
+      case "shred": {
+        const events = buildEvents({
+          sources,
+          chainId: chain.id,
+          blockData: {
+            block: {
+              number: event.shred.blockNumber,
+              timestamp: BigInt(Math.floor(Date.now() / 1000)), // TODO (blocked): need block.timestamp in shred data
+            } as InternalBlock,
+            logs: event.logs.map((log) => syncLogToInternal({ log })),
+            traces: [],
+            transactionReceipts: [],
+            transactions: [],
+          },
+          childAddresses: realtimeSync.childAddresses,
+        });
+
+        params.common.logger.debug({
+          service: "sync",
+          msg: `Extracted ${events.length} '${chain.name}' events for shred ${event.shred.shredIndex} in block ${event.shred.blockNumber}`,
+        });
+
+        const decodedEvents = decodeEvents(params.common, sources, events);
+
+        params.common.logger.debug({
+          service: "sync",
+          msg: `Decoded ${events.length} '${chain.name}' events for shred ${event.shred.shredIndex} in block ${event.shred.blockNumber}`,
+        });
+
+        if (params.ordering === "multichain") {
+          // Note: `checkpoints.current` not used in multichain ordering
+          const checkpoint = getMultichainCheckpoint({ tag: "current", chain });
+
+          const readyEvents = decodedEvents
+            // .concat(pendingEvents) // TODO: might need to touch this when we start implementing shred reorgs
+            .sort((a, b) => (a.checkpoint < b.checkpoint ? -1 : 1));
+          // pendingEvents = [];
+          executedEvents = executedEvents.concat(readyEvents);
+
+          params.common.logger.debug({
+            service: "sync",
+            msg: `Sequenced ${readyEvents.length} '${chain.name}' events for shred ${event.shred.shredIndex} in block ${event.shred.blockNumber}`,
+          });
+
+          await params.onRealtimeEvent({
+            type: "shred",
+            chain,
+            events: readyEvents,
+            checkpoints: [{ chainId: chain.id, checkpoint }],
+          });
+        } else {
+          throw new Error("omnichain ordering not supported yet in shreds");
+        }
+
+        return;
+      }
+
       default:
         never(event);
     }
@@ -1073,6 +1137,8 @@ export const createSync = async (params: {
               realtimeSync.onError(error);
             },
           });
+
+          // TODO: rpc.riseSubscribe
         }
       }
     },
@@ -1270,6 +1336,15 @@ export const getPerChainOnRealtimeSyncEvent = ({
         });
 
         return;
+      }
+
+      case "shred": {
+        //TODO
+        return;
+      }
+
+      default: {
+        never(event);
       }
     }
   };

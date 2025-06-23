@@ -15,7 +15,7 @@ const httpRequestSizeBytes = [
   10, 100, 1_000, 5_000, 10_000, 50_000, 100_000, 500_000, 1_000_000, 5_000_000,
   10_000_000,
 ];
-
+// TODO: add metrics for shreds
 export class MetricsService {
   registry: prometheus.Registry;
   start_timestamp: number;

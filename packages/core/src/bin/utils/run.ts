@@ -585,6 +585,10 @@ export async function run({
         });
         break;
 
+      case "shred":
+        // TODO
+        break;
+
       default:
         never(event);
     }

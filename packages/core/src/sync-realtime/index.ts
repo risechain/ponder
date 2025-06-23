@@ -170,6 +170,7 @@ export const createRealtimeSync = (
   let unfinalizedBlocks: LightBlock[] = [];
   let fetchAndReconcileLatestBlockErrorCount = 0;
   let reconcileBlockErrorCount = 0;
+  let currentBlockShreds: Shred[] = [];
 
   const factories: Factory[] = [];
   const logFilters: LogFilter[] = [];
@@ -1159,6 +1160,10 @@ export const createRealtimeSync = (
     shred: Shred,
   ): ShredWithEventData & { matchedFilters: Set<Filter> } => {
     const blockNumber = Number(shred.blockNumber);
+    const startingTransactionIndex = currentBlockShreds.reduce(
+      (acc, curr) => acc + curr.transactions.length,
+      0,
+    );
 
     const logs = shred.transactions.flatMap(({ logs, hash }, i) =>
       logs.map(
@@ -1169,7 +1174,7 @@ export const createRealtimeSync = (
             logIndex: numberToHex(j),
             removed: false,
             blockNumber: numberToHex(shred.blockNumber),
-            transactionIndex: numberToHex(i + shred.shredIndex), // TODO: this needs to keep track of number of txs in previous shred
+            transactionIndex: numberToHex(i + startingTransactionIndex),
             blockHash: numberToHex(shred.blockNumber),
             transactionHash: hash,
           }) satisfies SyncLog,
@@ -1251,12 +1256,9 @@ export const createRealtimeSync = (
     };
   };
 
-  // TODO: wrap this in a mutex
   const reconcileShred = (
     shredWithEventData: ShredWithEventData & { matchedFilters: Set<Filter> },
   ): SyncShredResult => {
-    // TODO: Handle shred reorgs
-
     const shredPromise = args.onEvent({
       type: "shred",
       hasMatchedFilter: shredWithEventData.matchedFilters.size > 0,
@@ -1270,13 +1272,30 @@ export const createRealtimeSync = (
     };
   };
 
+  const filterAndReconcileShred = (shred: Shred) => {
+    args.common.logger.debug({
+      service: "realtime",
+      msg: `Received latest '${args.chain.name}' shred ${shred.shredIndex} for block ${shred.blockNumber}`,
+    });
+
+    const filteredShred = filterShred(shred);
+
+    if (currentBlockShreds[0]?.blockNumber === shred.blockNumber) {
+      currentBlockShreds.push(shred);
+    } else {
+      // TODO: Handle shred reorgs
+      currentBlockShreds = [shred];
+    }
+
+    return reconcileShred(filteredShred);
+  };
+
   return {
     sync(block) {
       return fetchAndReconcileLatestBlock(block);
     },
     syncShred(shred) {
-      const filteredShred = filterShred(shred);
-      return reconcileShred(filteredShred);
+      return filterAndReconcileShred(shred);
     },
     onError,
     get unfinalizedBlocks() {
