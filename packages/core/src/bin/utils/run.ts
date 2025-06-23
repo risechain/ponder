@@ -650,6 +650,11 @@ EXECUTE PROCEDURE "${namespaceBuild.viewsSchema}".${notification};`),
         });
 
         break;
+
+      case "shred":
+        // TODO
+        break;
+
       default:
         never(event);
     }

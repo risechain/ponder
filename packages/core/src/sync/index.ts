@@ -7,6 +7,7 @@ import type {
   FactoryId,
   Filter,
   IndexingBuild,
+  InternalBlock,
   LightBlock,
   RawEvent,
   Seconds,
@@ -92,6 +93,12 @@ export type RealtimeEvent =
       type: "finalize";
       chain: Chain;
       checkpoint: string;
+    }
+  | {
+      type: "shred";
+      chain: Chain;
+      events: Event[];
+      checkpoints: { chainId: number; checkpoint: string }[];
     };
 
 type EventGenerator = AsyncGenerator<{
@@ -1247,6 +1254,15 @@ export const getPerChainOnRealtimeSyncEvent = ({
         });
 
         return;
+      }
+
+      case "shred": {
+        //TODO
+        return;
+      }
+
+      default: {
+        never(event);
       }
     }
   };
