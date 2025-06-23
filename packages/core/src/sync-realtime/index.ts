@@ -381,17 +381,18 @@ export const createRealtimeSync = (
     // Get Matched
     ////////
 
-    // Record `blockChildAddresses` that contain factory child addresses
+    // // Record `blockChildAddresses` that contain factory child addresses
+    // we move this step to reconcileShred
     const blockChildAddresses = new Map<Factory, Set<Address>>();
-    for (const factory of factories) {
-      blockChildAddresses.set(factory, new Set<Address>());
-      for (const log of logs) {
-        if (isLogFactoryMatched({ factory, log })) {
-          const address = getChildAddress({ log, factory });
-          blockChildAddresses.get(factory)!.add(address);
-        }
-      }
-    }
+    // for (const factory of factories) {
+    //   blockChildAddresses.set(factory, new Set<Address>());
+    //   for (const log of logs) {
+    //     if (isLogFactoryMatched({ factory, log })) {
+    //       const address = getChildAddress({ log, factory });
+    //       blockChildAddresses.get(factory)!.add(address);
+    //     }
+    //   }
+    // }
 
     const requiredTransactions = new Set<Hash>();
     const requiredTransactionReceipts = new Set<Hash>();
