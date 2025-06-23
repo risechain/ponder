@@ -19311,7 +19311,7 @@ snapshots:
 
   webauthn-p256@0.0.5:
     dependencies:
-      '@noble/curves': 1.4.0
+      '@noble/curves': 1.9.1
       '@noble/hashes': 1.8.0
 
   webcrypto-core@1.7.7:

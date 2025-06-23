@@ -65,7 +65,7 @@ export type RealtimeSync = {
    * @param block - The block to reconcile.
    */
   sync(block: SyncBlock | SyncBlockHeader): Promise<SyncResult>;
-  syncShred(shred: Shred): Promise<SyncShredResult>;
+  syncShred(shred: Shred): SyncShredResult;
   onError(error: Error): void;
   /**
    * Local chain of blocks that have not been finalized.
@@ -408,17 +408,18 @@ export const createRealtimeSync = (
     // Get Matched
     ////////
 
-    // Record `blockChildAddresses` that contain factory child addresses
+    // // Record `blockChildAddresses` that contain factory child addresses
+    // we move this step to reconcileShred
     const blockChildAddresses = new Map<Factory, Set<Address>>();
-    for (const factory of factories) {
-      blockChildAddresses.set(factory, new Set<Address>());
-      for (const log of logs) {
-        if (isLogFactoryMatched({ factory, log })) {
-          const address = getChildAddress({ log, factory });
-          blockChildAddresses.get(factory)!.add(address);
-        }
-      }
-    }
+    // for (const factory of factories) {
+    //   blockChildAddresses.set(factory, new Set<Address>());
+    //   for (const log of logs) {
+    //     if (isLogFactoryMatched({ factory, log })) {
+    //       const address = getChildAddress({ log, factory });
+    //       blockChildAddresses.get(factory)!.add(address);
+    //     }
+    //   }
+    // }
 
     const requiredTransactions = new Set<Hash>();
     const requiredTransactionReceipts = new Set<Hash>();
@@ -1154,7 +1155,11 @@ export const createRealtimeSync = (
     }
   };
 
-  const reconcileShred = (shred: Shred) => {
+  const filterShred = (
+    shred: Shred,
+  ): ShredWithEventData & { matchedFilters: Set<Filter> } => {
+    const blockNumber = Number(shred.blockNumber);
+
     const logs = shred.transactions.flatMap(({ logs, hash }, i) =>
       logs.map(
         (log, j) =>
@@ -1164,33 +1169,105 @@ export const createRealtimeSync = (
             logIndex: numberToHex(j),
             removed: false,
             blockNumber: numberToHex(shred.blockNumber),
-            transactionIndex: numberToHex(i),
+            transactionIndex: numberToHex(i + shred.shredIndex), // TODO: this needs to keep track of number of txs in previous shred
             blockHash: numberToHex(shred.blockNumber),
             transactionHash: hash,
           }) satisfies SyncLog,
       ),
     );
 
+    // Record `blockChildAddresses` that contain factory child addresses
+    const shredChildAddresses = new Map<Factory, Set<Address>>();
+
+    for (const factory of factories) {
+      shredChildAddresses.set(factory, new Set<Address>());
+
+      for (const log of logs) {
+        if (isLogFactoryMatched({ factory, log })) {
+          const address = getChildAddress({ log, factory });
+          shredChildAddresses.get(factory)!.add(address);
+        }
+      }
+
+      // Update `childAddresses`
+      for (const address of shredChildAddresses.get(factory)!) {
+        if (childAddresses.get(factory)!.has(address) === false) {
+          childAddresses.get(factory)!.set(address, blockNumber);
+        } else {
+          shredChildAddresses.get(factory)!.delete(address);
+        }
+      }
+    }
+
+    // Save/merge per block child addresses so that they can be undone in the event of a reorg.
+    if (childAddressesPerBlock.has(blockNumber)) {
+      const blockChildAddresses = childAddressesPerBlock.get(blockNumber)!;
+      for (const factory of factories) {
+        blockChildAddresses.set(
+          factory,
+          blockChildAddresses
+            .get(factory)!
+            .union(shredChildAddresses.get(factory)!),
+        );
+      }
+    } else {
+      childAddressesPerBlock.set(blockNumber, shredChildAddresses);
+    }
+
+    const matchedFilters = new Set<Filter>();
+
+    // Get matching logs
     const filteredLogs = logs.filter((log) => {
       let isMatched = false;
 
       for (const filter of logFilters) {
-        if (isLogFilterMatched({ filter, log })) {
+        if (
+          isLogFilterMatched({ filter, log }) &&
+          (isAddressFactory(filter.address)
+            ? isAddressMatched({
+                address: log.address,
+                blockNumber: blockNumber,
+                childAddresses: childAddresses.get(filter.address)!,
+              })
+            : true)
+        ) {
+          matchedFilters.add(filter);
           isMatched = true;
-          if (log.transactionHash !== zeroHash) {
-            requiredTransactions.add(log.transactionHash);
-            if (shouldGetTransactionReceipt(filter)) {
-              requiredTransactionReceipts.add(log.transactionHash);
-
-              // skip to next log
-              break;
-            }
-          }
         }
       }
 
       return isMatched;
     });
+
+    // TODO: Get matching transactions & transaction receipts
+
+    return {
+      logs: filteredLogs,
+      shred: {
+        blockNumber: shred.blockNumber,
+        shredIndex: shred.shredIndex,
+      },
+      matchedFilters,
+    };
+  };
+
+  // TODO: wrap this in a mutex
+  const reconcileShred = (
+    shredWithEventData: ShredWithEventData & { matchedFilters: Set<Filter> },
+  ): SyncShredResult => {
+    // TODO: Handle shred reorgs
+
+    const shredPromise = args.onEvent({
+      type: "shred",
+      hasMatchedFilter: shredWithEventData.matchedFilters.size > 0,
+      logs: shredWithEventData.logs,
+      shred: shredWithEventData.shred,
+    });
+
+    return {
+      shredPromise: shredPromise.then((result) => result.promise),
+      type: "accepted",
+    };
   };
 
   return {
@@ -1198,7 +1275,8 @@ export const createRealtimeSync = (
       return fetchAndReconcileLatestBlock(block);
     },
     syncShred(shred) {
-      return reconcileShred(shred);
+      const filteredShred = filterShred(shred);
+      return reconcileShred(filteredShred);
     },
     onError,
     get unfinalizedBlocks() {
