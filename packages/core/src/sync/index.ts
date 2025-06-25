@@ -683,6 +683,10 @@ export const createSync = async (params: {
   ): RealtimeEvent | undefined => {
     switch (event.type) {
       case "block": {
+        blockTimestamps.set(
+          hexToBigInt(event.block.number),
+          hexToBigInt(event.block.timestamp),
+        );
         const events = buildEvents({
           sources,
           chainId: chain.id,
