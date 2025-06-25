@@ -65,7 +65,7 @@ export type RealtimeSync = {
    * @param block - The block to reconcile.
    */
   sync(block: SyncBlock | SyncBlockHeader): Promise<SyncResult>;
-  syncShred(shred: Shred): SyncShredResult;
+  syncShred(shred: Shred): Promise<SyncShredResult>;
   onError(error: Error): void;
   /**
    * Local chain of blocks that have not been finalized.
@@ -1208,12 +1208,13 @@ export const createRealtimeSync = (
     if (childAddressesPerBlock.has(blockNumber)) {
       const blockChildAddresses = childAddressesPerBlock.get(blockNumber)!;
       for (const factory of factories) {
-        blockChildAddresses.set(
-          factory,
-          blockChildAddresses
-            .get(factory)!
-            .union(shredChildAddresses.get(factory)!),
-        );
+        const existingAddresses = blockChildAddresses.get(factory)!;
+        const newAddresses = shredChildAddresses.get(factory)!;
+        const combinedAddresses = new Set(existingAddresses);
+        for (const address of newAddresses) {
+          combinedAddresses.add(address);
+        }
+        blockChildAddresses.set(factory, combinedAddresses);
       }
     } else {
       childAddressesPerBlock.set(blockNumber, shredChildAddresses);
@@ -1272,7 +1273,7 @@ export const createRealtimeSync = (
     };
   };
 
-  const filterAndReconcileShred = (shred: Shred) => {
+  const filterAndReconcileShred = mutex(async (shred: Shred) => {
     args.common.logger.debug({
       service: "realtime",
       msg: `Received latest '${args.chain.name}' shred ${shred.shredIndex} for block ${shred.blockNumber}`,
@@ -1288,7 +1289,7 @@ export const createRealtimeSync = (
     }
 
     return reconcileShred(filteredShred);
-  };
+  });
 
   return {
     sync(block) {

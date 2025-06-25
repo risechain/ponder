@@ -560,8 +560,13 @@ export const createSync = async (params: {
       realtimeSync: RealtimeSync;
     },
   ): Promise<void> => {
+    const blockTimestamps = new Map<bigint, bigint>();
     switch (event.type) {
       case "block": {
+        blockTimestamps.set(
+          hexToBigInt(event.block.number),
+          hexToBigInt(event.block.timestamp),
+        );
         const events = buildEvents({
           sources,
           chainId: chain.id,
@@ -835,7 +840,9 @@ export const createSync = async (params: {
           blockData: {
             block: {
               number: event.shred.blockNumber,
-              timestamp: BigInt(Math.floor(Date.now() / 1000)), // TODO (blocked): need block.timestamp in shred data
+              timestamp:
+                blockTimestamps.get(event.shred.blockNumber) ??
+                BigInt(Math.floor(Date.now() / 1000)), // TODO (blocked): need block.timestamp in shred data
             } as InternalBlock,
             logs: event.logs.map((log) => syncLogToInternal({ log })),
             traces: [],
@@ -1110,6 +1117,18 @@ export const createSync = async (params: {
             msg: `Initialized '${chain.name}' realtime sync with ${childCount} factory child addresses`,
           });
 
+          // TODO: rpc.riseSubscribe
+          rpc.riseSubscribe({
+            onError(error) {
+              realtimeSync.onError(error);
+            },
+            onShred: async (shred) => {
+              const syncResult = await realtimeSync.syncShred(shred);
+
+              return syncResult;
+            },
+          });
+
           rpc.subscribe({
             onBlock: async (block) => {
               const arrivalMs = Date.now();
@@ -1137,8 +1156,6 @@ export const createSync = async (params: {
               realtimeSync.onError(error);
             },
           });
-
-          // TODO: rpc.riseSubscribe
         }
       }
     },
