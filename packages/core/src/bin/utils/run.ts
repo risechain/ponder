@@ -502,7 +502,7 @@ export async function run({
             )!;
 
             const result = await indexing.processEvents({
-              events,
+              events: events.filter((event) => event.type !== "log"), // We process logs in shreds
               db: realtimeIndexingStore,
             });
 
@@ -585,10 +585,71 @@ export async function run({
         });
         break;
 
-      case "shred":
-        // TODO
-        break;
+      case "shred": {
+        if (event.events.length < 0) break;
 
+        const perBlockEvents = splitEvents(event.events);
+
+        for (const { checkpoint, events } of perBlockEvents) {
+          const chain = indexingBuild.chains.find(
+            (chain) =>
+              chain.id === Number(decodeCheckpoint(checkpoint).chainId),
+          )!;
+
+          const result = await indexing.processEvents({
+            events: events, // We process logs in shreds
+            db: realtimeIndexingStore,
+          });
+
+          common.logger.info({
+            service: "app",
+            msg: `Indexed ${events.length} '${chain.name}' events for shred in block ${Number(decodeCheckpoint(checkpoint).blockNumber)}`,
+          });
+
+          if (result.status === "error") onReloadableError(result.error);
+
+          await database.commitBlock({ checkpoint, db: database.qb.drizzle });
+
+          if (preBuild.ordering === "multichain") {
+            common.metrics.ponder_indexing_timestamp.set(
+              { chain: chain.name },
+              Number(decodeCheckpoint(checkpoint).blockTimestamp),
+            );
+          } else {
+            for (const chain of indexingBuild.chains) {
+              common.metrics.ponder_indexing_timestamp.set(
+                { chain: chain.name },
+                Number(decodeCheckpoint(checkpoint).blockTimestamp),
+              );
+            }
+          }
+        }
+
+        await database.wrap({ method: "setCheckpoints" }, async () => {
+          if (event.checkpoints.length === 0) return;
+
+          await database.qb.drizzle
+            .insert(database.PONDER_CHECKPOINT)
+            .values(
+              event.checkpoints.map(({ chainId, checkpoint }) => ({
+                chainName: indexingBuild.chains.find(
+                  (chain) => chain.id === chainId,
+                )!.name,
+                chainId,
+                safeCheckpoint: checkpoint,
+                latestCheckpoint: checkpoint,
+              })),
+            )
+            .onConflictDoUpdate({
+              target: database.PONDER_CHECKPOINT.chainName,
+              set: {
+                latestCheckpoint: sql`excluded.latest_checkpoint`,
+              },
+            });
+        });
+
+        break;
+      }
       default:
         never(event);
     }
