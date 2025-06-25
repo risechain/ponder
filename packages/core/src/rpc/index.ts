@@ -16,6 +16,7 @@ import {
 import {
   type Shred,
   type ShredsWebSocketTransport,
+  formatShred,
   shredsWebSocket,
 } from "shreds/viem";
 import {
@@ -205,7 +206,7 @@ export const createRpc = ({
     } else if (protocol === "wss:" || protocol === "ws:") {
       request = [
         webSocket(chain.rpc)({
-          chain: chain.viemChain,
+          chain: chain.viemChain as never,
           retryCount: 0,
           timeout: 5_000,
         }).request,
@@ -224,7 +225,7 @@ export const createRpc = ({
         }).request;
       } else if (protocol === "wss:" || protocol === "ws:") {
         return webSocket(rpc)({
-          chain: chain.viemChain,
+          chain: chain.viemChain as never,
           retryCount: 0,
           timeout: 5_000,
         }).request;
@@ -252,7 +253,7 @@ export const createRpc = ({
         keepAlive: true,
         reconnect: false,
       })({
-        chain: chain.viemChain,
+        chain: chain.viemChain as never,
         retryCount: 0,
         timeout: 5_000,
       });
@@ -633,7 +634,7 @@ export const createRpc = ({
                 data.error === undefined &&
                 data.result !== undefined
               ) {
-                onShred(data.result);
+                onShred(formatShred(data.result));
 
                 common.logger.debug({
                   service: "rpc",
