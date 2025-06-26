@@ -48,14 +48,7 @@ import {
   validateTransactionsAndBlock,
 } from "@/utils/rpc.js";
 import { wait } from "@/utils/wait.js";
-import type { Shred } from "shreds/viem";
-import {
-  type Address,
-  type Hash,
-  hexToNumber,
-  numberToHex,
-  zeroHash,
-} from "viem";
+import { type Address, type Hash, hexToNumber, zeroHash } from "viem";
 import { isFilterInBloom, isInBloom, zeroLogsBloom } from "./bloom.js";
 
 export type RealtimeSync = {
@@ -82,11 +75,6 @@ export type BlockWithEventData = {
   childAddresses: Map<Factory, Set<Address>>;
 };
 
-export type ShredWithEventData = {
-  shred: Omit<Shred, "transactions" | "stateChanges">;
-  logs: SyncLog[];
-};
-
 export type RealtimeSyncEvent =
   | ({
       type: "block";
@@ -101,11 +89,7 @@ export type RealtimeSyncEvent =
       type: "reorg";
       block: LightBlock;
       reorgedBlocks: LightBlock[];
-    }
-  | ({
-      type: "shred";
-      hasMatchedFilter: boolean;
-    } & ShredWithEventData);
+    };
 
 type CreateRealtimeSyncParameters = {
   common: Common;
@@ -382,18 +366,17 @@ export const createRealtimeSync = (
     // Get Matched
     ////////
 
-    // // Record `blockChildAddresses` that contain factory child addresses
-    // we move this step to reconcileShred
+    // Record `blockChildAddresses` that contain factory child addresses
     const blockChildAddresses = new Map<Factory, Set<Address>>();
-    // for (const factory of factories) {
-    //   blockChildAddresses.set(factory, new Set<Address>());
-    //   for (const log of logs) {
-    //     if (isLogFactoryMatched({ factory, log })) {
-    //       const address = getChildAddress({ log, factory });
-    //       blockChildAddresses.get(factory)!.add(address);
-    //     }
-    //   }
-    // }
+    for (const factory of factories) {
+      blockChildAddresses.set(factory, new Set<Address>());
+      for (const log of logs) {
+        if (isLogFactoryMatched({ factory, log })) {
+          const address = getChildAddress({ log, factory });
+          blockChildAddresses.get(factory)!.add(address);
+        }
+      }
+    }
 
     const requiredTransactions = new Set<Hash>();
     const requiredTransactionReceipts = new Set<Hash>();
