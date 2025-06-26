@@ -1,13 +1,24 @@
 import { ponder } from "ponder:registry";
-import { formatUnits } from "viem";
+import { accounts } from "../ponder.schema";
 
-let lastRunTime = performance.now();
-
-ponder.on("Usdc:Transfer", async ({ event }) => {
-  const now = performance.now();
-  console.log(
-    `new Transfer: ${event.args.from} -> ${event.args.to}: ${formatUnits(event.args.value, 6)}`,
-  );
-  console.log(`shred interval: ${now - lastRunTime}ms`);
-  lastRunTime = now;
+ponder.on("Usdc:Transfer", async ({ event, context }) => {
+  await context.db
+    .insert(accounts)
+    .values([
+      {
+        id: event.args.from,
+        transferIn: 0n,
+        transferOut: event.args.value,
+      },
+      {
+        id: event.args.to,
+        transferIn: event.args.value,
+        transferOut: 0n,
+      },
+    ])
+    .onConflictDoUpdate((row) =>
+      row.id === event.args.from
+        ? { transferOut: row.transferOut + event.args.value }
+        : { transferIn: row.transferIn + event.args.value },
+    );
 });

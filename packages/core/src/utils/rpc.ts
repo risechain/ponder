@@ -24,7 +24,7 @@ import {
 /**
  * Helper function for "eth_getBlockByNumber" request.
  */
-export const _eth_getBlockByNumber = (
+export const _eth_getBlockByNumber = async (
   rpc: Rpc,
   {
     blockNumber,
@@ -32,9 +32,12 @@ export const _eth_getBlockByNumber = (
   }:
     | { blockNumber: Hex | number; blockTag?: never }
     | { blockNumber?: never; blockTag: "latest" },
-): Promise<SyncBlock> =>
-  rpc
-    .request({
+): Promise<SyncBlock> => {
+  const maxRetries = 10;
+  const retryDelay = 1000; // 1 second
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const _block = await rpc.request({
       method: "eth_getBlockByNumber",
       params: [
         typeof blockNumber === "number"
@@ -42,34 +45,56 @@ export const _eth_getBlockByNumber = (
           : (blockNumber ?? blockTag),
         true,
       ],
-    })
-    .then((_block) => {
-      if (!_block)
-        throw new BlockNotFoundError({
-          blockNumber: (blockNumber ?? blockTag) as any,
-        });
-      return standardizeBlock(_block as SyncBlock);
     });
 
+    if (_block) {
+      return standardizeBlock(_block as SyncBlock);
+    }
+
+    if (attempt < maxRetries - 1) {
+      await new Promise((resolve) =>
+        setTimeout(resolve, retryDelay * (attempt + 1)),
+      );
+    }
+  }
+
+  throw new BlockNotFoundError({
+    blockNumber: (blockNumber ?? blockTag) as never,
+  });
+};
 /**
  * Helper function for "eth_getBlockByNumber" request.
  */
-export const _eth_getBlockByHash = (
+export const _eth_getBlockByHash = async (
   rpc: Rpc,
   { hash }: { hash: Hex },
-): Promise<SyncBlock> =>
-  rpc
-    .request({
+): Promise<SyncBlock> => {
+  const maxRetries = 10;
+  const retryDelay = 1000; // 1 second
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const _block = await rpc.request({
       method: "eth_getBlockByHash",
       params: [hash, true],
-    })
-    .then((_block) => {
-      if (!_block)
-        throw new BlockNotFoundError({
-          blockHash: hash,
-        });
-      return standardizeBlock(_block as SyncBlock);
     });
+
+    if (_block) {
+      return standardizeBlock(_block as SyncBlock);
+    }
+
+    // If this is not the last attempt, wait before retrying
+    if (attempt < maxRetries - 1) {
+      await new Promise((resolve) =>
+        setTimeout(resolve, retryDelay * (attempt + 1)),
+      );
+    }
+  }
+
+  // If all retries failed, throw the error
+  throw new BlockNotFoundError({
+    blockHash: hash,
+  });
+};
 
 /**
  * Helper function for "eth_getLogs" rpc request.

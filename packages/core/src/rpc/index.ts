@@ -1,6 +1,8 @@
 import url from "node:url";
 import type { Common } from "@/internal/common.js";
 import type { Chain, SyncBlock, SyncBlockHeader } from "@/internal/types.js";
+import type { RealtimeSyncShreds } from "@/sync-realtime-shreds/index.js";
+import type { RealtimeSync } from "@/sync-realtime/index.js";
 import { createQueue } from "@/utils/queue.js";
 import {
   _eth_getBlockByHash,
@@ -51,7 +53,7 @@ export type Rpc = {
     polling?: boolean;
   }) => Promise<void>;
   riseSubscribe: (params: {
-    onShred: (shred: Shred) => ReturnType<RealtimeSync["syncShred"]>;
+    onShred: (shred: Shred) => ReturnType<RealtimeSyncShreds["syncShred"]>;
     onError: (error: Error) => void;
   }) => void;
   unsubscribe: () => Promise<void>;
@@ -620,6 +622,9 @@ export const createRpc = ({
         process.exit(1);
       }
 
+      let lastBlockNumber = 0n;
+      let lastShredNumber = 0;
+
       for (let i = 0; i <= RETRY_COUNT; ++i) {
         try {
           await wsTransport.value!.riseSubscribe({
@@ -634,9 +639,32 @@ export const createRpc = ({
                 data.error === undefined &&
                 data.result !== undefined
               ) {
-                onShred(formatShred(data.result));
+                const shred = formatShred(data.result);
+                onShred(shred);
 
-                common.logger.debug({
+                if (lastBlockNumber === 0n) {
+                  lastBlockNumber = shred.blockNumber;
+                  lastShredNumber = shred.shredIndex;
+                } else if (lastBlockNumber === shred.blockNumber) {
+                  if (shred.shredIndex <= lastShredNumber) {
+                    common.logger.warn({
+                      service: "rpc",
+                      msg: `shred reorg detected at block ${shred.blockNumber}. last shred: ${lastShredNumber}, new shred: ${shred.shredIndex}`,
+                    });
+                  } else {
+                    lastShredNumber = shred.shredIndex;
+                  }
+                } else if (shred.blockNumber > lastBlockNumber) {
+                  lastBlockNumber = shred.blockNumber;
+                  lastShredNumber = shred.shredIndex;
+                } else {
+                  common.logger.warn({
+                    service: "rpc",
+                    msg: `block reorg detected at block ${shred.blockNumber}. new block: ${shred.blockNumber}`,
+                  });
+                }
+
+                common.logger.trace({
                   service: "rpc",
                   msg: `Received successful '${chain.name}' shred subscription data`,
                 });
@@ -693,6 +721,8 @@ export const createRpc = ({
               }
             },
           });
+
+          return;
         } catch (_error) {
           const error = _error as Error;
 

@@ -3,6 +3,10 @@ import { erc20Abi } from "viem";
 import { riseTestnet } from "viem/chains";
 
 export default createConfig({
+  database: {
+    kind: "postgres",
+    connectionString: process.env.DATABASE_URL,
+  },
   chains: {
     riseTestnet: {
       id: riseTestnet.id,
@@ -16,6 +20,7 @@ export default createConfig({
       abi: erc20Abi,
       address: "0x8A93d247134d91e0de6f96547cB0204e5BE8e5D8",
       startBlock: "latest",
+      // endBlock: 15864657 + 60,
     },
   },
 });
