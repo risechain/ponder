@@ -814,9 +814,7 @@ export const createSync = async (params: {
           blockData: {
             block: {
               number: event.shred.blockNumber,
-              timestamp:
-                blockTimestamps.get(event.shred.blockNumber) ??
-                BigInt(Math.floor(Date.now() / 1000)), // TODO (blocked): need block.timestamp in shred data
+              timestamp: event.shred.blockTimestamp,
               hash: numberToHex(event.shred.blockNumber),
             } as InternalBlock,
             logs: event.logs.map((log) => syncLogToInternal({ log })),
@@ -843,10 +841,9 @@ export const createSync = async (params: {
           // Note: `checkpoints.current` not used in multichain ordering
           const checkpoint = getMultichainCheckpoint({ tag: "current", chain });
 
-          const readyEvents = decodedEvents
-            // .concat(pendingEvents) // TODO: might need to touch this when we start implementing shred reorgs
-            .sort((a, b) => (a.checkpoint < b.checkpoint ? -1 : 1));
-          // pendingEvents = [];
+          const readyEvents = decodedEvents.sort((a, b) =>
+            a.checkpoint < b.checkpoint ? -1 : 1,
+          );
           executedEvents = executedEvents.concat(readyEvents);
 
           params.common.logger.debug({
