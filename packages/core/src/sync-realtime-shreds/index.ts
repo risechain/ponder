@@ -107,7 +107,7 @@ export type BlockWithEventData = {
 };
 
 export type ShredWithEventData = {
-  shred: Omit<Shred, "transactions" | "stateChanges">;
+  shred: Omit<Shred, "transactions" | "stateChanges" | "startingLogIndex">;
   logs: SyncLog[];
 };
 
@@ -1274,6 +1274,7 @@ export const createRealtimeSyncShreds = (
       shred: {
         blockNumber: shred.blockNumber,
         shredIndex: shred.shredIndex,
+        blockTimestamp: shred.blockTimestamp,
       },
       matchedFilters,
     };
