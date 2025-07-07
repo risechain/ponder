@@ -673,11 +673,7 @@ EXECUTE PROCEDURE "${namespaceBuild.viewsSchema}".${notification};`),
 
           if (result.status === "error") onReloadableError(result.error);
 
-          await Promise.all(
-            tables.map((table) =>
-              commitBlock(database.userQB, { table, checkpoint }),
-            ),
-          );
+          await database.commitBlock({ checkpoint, db: database.qb.drizzle });
 
           common.logger.info({
             service: "app",
@@ -699,10 +695,11 @@ EXECUTE PROCEDURE "${namespaceBuild.viewsSchema}".${notification};`),
           }
         }
 
-        if (event.checkpoints.length > 0) {
-          await database
-            .adminQB("update_checkpoints")
-            .insert(PONDER_CHECKPOINT)
+        await database.wrap({ method: "setCheckpoints" }, async () => {
+          if (event.checkpoints.length === 0) return;
+
+          await database.qb.drizzle
+            .insert(database.PONDER_CHECKPOINT)
             .values(
               event.checkpoints.map(({ chainId, checkpoint }) => ({
                 chainName: indexingBuild.chains.find(
@@ -714,10 +711,12 @@ EXECUTE PROCEDURE "${namespaceBuild.viewsSchema}".${notification};`),
               })),
             )
             .onConflictDoUpdate({
-              target: PONDER_CHECKPOINT.chainName,
-              set: { latestCheckpoint: sql`excluded.latest_checkpoint` },
+              target: database.PONDER_CHECKPOINT.chainName,
+              set: {
+                latestCheckpoint: sql`excluded.latest_checkpoint`,
+              },
             });
-        }
+        });
 
         break;
       }
