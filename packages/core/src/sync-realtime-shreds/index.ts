@@ -51,8 +51,10 @@ import type { Shred } from "shreds/viem";
 import {
   type Address,
   type Hash,
+  type OneOf,
   hexToNumber,
   numberToHex,
+  zeroAddress,
   zeroHash,
 } from "viem";
 import { isFilterInBloom, isInBloom, zeroLogsBloom } from "./bloom.js";
@@ -109,6 +111,8 @@ export type BlockWithEventData = {
 export type ShredWithEventData = {
   shred: Omit<Shred, "transactions" | "stateChanges" | "startingLogIndex">;
   logs: SyncLog[];
+  transactions: SyncTransaction[];
+  transactionReceipts: SyncTransactionReceipt[];
 };
 
 export type RealtimeSyncShredsEvent =
@@ -1187,21 +1191,106 @@ export const createRealtimeSyncShreds = (
       0,
     );
 
-    const logs = shred.transactions.flatMap(({ logs, hash }, i) =>
-      logs.map(
-        (log, j) =>
-          ({
-            ...log,
-            topics: log.topics as SyncLog["topics"],
-            logIndex: numberToHex(j),
-            removed: false,
-            blockNumber: numberToHex(shred.blockNumber),
-            transactionIndex: numberToHex(i + startingTransactionIndex),
-            blockHash: numberToHex(shred.blockNumber),
-            transactionHash: hash,
-          }) satisfies SyncLog,
-      ),
-    );
+    // Extract transactions and receipts from shred
+    const transactions: SyncTransaction[] = [];
+    const transactionReceipts: SyncTransactionReceipt[] = [];
+    const logs: SyncLog[] = [];
+
+    let i = 0;
+    for (const shredTx of shred.transactions) {
+      const transactionIndex = i + startingTransactionIndex;
+      const startingLogIndex = logs.length + shred.startingLogIndex;
+
+      // Create SyncTransaction based on transaction type
+      // let transaction: SyncTransaction;
+
+      const _shredTx = shredTx as OneOf<typeof shredTx>;
+
+      const transaction = {
+        blockHash: numberToHex(shred.blockNumber),
+        blockNumber: numberToHex(shred.blockNumber),
+        from: zeroAddress, // TODO (blocked)
+        gas: numberToHex(_shredTx.gas),
+        hash: _shredTx.hash,
+        input: _shredTx.input,
+        nonce: numberToHex(_shredTx.nonce),
+        r: _shredTx.r,
+        s: _shredTx.s,
+        v: numberToHex(_shredTx.v),
+        to: _shredTx.to,
+        transactionIndex: numberToHex(transactionIndex),
+        type: _shredTx.typeHex as never,
+        value: numberToHex(_shredTx.value),
+        accessList: _shredTx.accessList ?? [],
+        chainId: numberToHex(_shredTx.chainId),
+        authorizationList: _shredTx.authorizationList?.map((a) => ({
+          chainId: numberToHex(a.chainId),
+          nonce: numberToHex(a.nonce),
+          address: a.address,
+          r: a.r!,
+          s: a.s!,
+          yParity: numberToHex(a.yParity!),
+        })),
+        maxFeePerGas: numberToHex(_shredTx.maxFeePerGas ?? 0n),
+        maxPriorityFeePerGas: numberToHex(_shredTx.maxPriorityFeePerGas ?? 0n),
+      } satisfies SyncTransaction;
+
+      transactions.push(transaction);
+
+      // Create SyncTransactionReceipt
+      const receipt: SyncTransactionReceipt = {
+        blockHash: numberToHex(shred.blockNumber),
+        blockNumber: numberToHex(shred.blockNumber),
+        contractAddress: null, // TODO (blocked)
+        cumulativeGasUsed: numberToHex(_shredTx.cumulativeGasUsed),
+        effectiveGasPrice: numberToHex(_shredTx.gasPrice ?? 0n), // TODO (blocked)
+        from: zeroAddress, // TODO (blocked)
+        gasUsed: numberToHex(_shredTx.cumulativeGasUsed),
+        logsBloom: zeroLogsBloom, // TODO (blocked)
+        status: _shredTx.status === "success" ? "0x1" : "0x0",
+        to: _shredTx.to,
+        transactionHash: _shredTx.hash,
+        transactionIndex: numberToHex(transactionIndex),
+        type:
+          _shredTx.type === "legacy"
+            ? "0x0"
+            : _shredTx.type === "eip2930"
+              ? "0x1"
+              : _shredTx.type === "eip1559"
+                ? "0x2"
+                : "0x7e",
+        logs: _shredTx.logs.map((log, j) => ({
+          ...log,
+          blockHash: numberToHex(shred.blockNumber),
+          blockNumber: numberToHex(shred.blockNumber),
+          logIndex: numberToHex(startingLogIndex + j),
+          removed: false,
+          transactionHash: _shredTx.hash,
+          transactionIndex: numberToHex(transactionIndex),
+          topics: log.topics as never,
+        })),
+      };
+
+      transactionReceipts.push(receipt);
+
+      // Extract logs
+      let j = 0;
+      for (const log of _shredTx.logs) {
+        logs.push({
+          ...log,
+          topics: log.topics as SyncLog["topics"],
+          logIndex: numberToHex(j),
+          removed: false,
+          blockNumber: numberToHex(shred.blockNumber),
+          transactionIndex: numberToHex(transactionIndex),
+          blockHash: numberToHex(shred.blockNumber),
+          transactionHash: shredTx.hash,
+        } satisfies SyncLog);
+        j++;
+      }
+
+      i++;
+    }
 
     // Record `blockChildAddresses` that contain factory child addresses
     const shredChildAddresses = new Map<Factory, Set<Address>>();
@@ -1267,10 +1356,54 @@ export const createRealtimeSyncShreds = (
       return isMatched;
     });
 
-    // TODO: Get matching transactions & transaction receipts
+    // Get matching transactions & transaction receipts
+    const requiredTransactionHashes = new Set<Hash>();
+
+    // Add transaction hashes from logs that matched
+    for (const log of filteredLogs) {
+      requiredTransactionHashes.add(log.transactionHash);
+    }
+
+    // Filter transactions
+    const filteredTransactions = transactions.filter((transaction) => {
+      let isMatched = requiredTransactionHashes.has(transaction.hash);
+
+      for (const filter of transactionFilters) {
+        if (
+          isTransactionFilterMatched({ filter, transaction }) &&
+          (isAddressFactory(filter.fromAddress)
+            ? isAddressMatched({
+                address: transaction.from,
+                blockNumber: blockNumber,
+                childAddresses: childAddresses.get(filter.fromAddress)!,
+              })
+            : true) &&
+          (isAddressFactory(filter.toAddress)
+            ? isAddressMatched({
+                address: transaction.to ?? undefined,
+                blockNumber: blockNumber,
+                childAddresses: childAddresses.get(filter.toAddress)!,
+              })
+            : true)
+        ) {
+          matchedFilters.add(filter);
+          isMatched = true;
+          requiredTransactionHashes.add(transaction.hash);
+        }
+      }
+
+      return isMatched;
+    });
+
+    // Filter transaction receipts to match filtered transactions
+    const filteredTransactionReceipts = transactionReceipts.filter((receipt) =>
+      requiredTransactionHashes.has(receipt.transactionHash),
+    );
 
     return {
       logs: filteredLogs,
+      transactions: filteredTransactions,
+      transactionReceipts: filteredTransactionReceipts,
       shred: {
         blockNumber: shred.blockNumber,
         shredIndex: shred.shredIndex,
@@ -1287,6 +1420,8 @@ export const createRealtimeSyncShreds = (
       type: "shred",
       hasMatchedFilter: shredWithEventData.matchedFilters.size > 0,
       logs: shredWithEventData.logs,
+      transactions: shredWithEventData.transactions,
+      transactionReceipts: shredWithEventData.transactionReceipts,
       shred: shredWithEventData.shred,
     });
 

@@ -918,8 +918,8 @@ importers:
         specifier: ^7.7.1
         version: 7.7.1
       shreds:
-        specifier: 0.1.7-beta.2
-        version: 0.1.7-beta.2(viem@2.31.4(typescript@5.8.3)(zod@3.23.8))
+        specifier: 0.2.1
+        version: 0.2.1(viem@2.31.4(typescript@5.8.3)(zod@3.23.8))
       stacktrace-parser:
         specifier: ^0.1.10
         version: 0.1.10
@@ -13807,15 +13807,13 @@ packages:
         integrity: sha512-njXuliz/cP+67jU2hukkxCNuH1yUi4QfdZZY+sMr5PPrIyXSu5iTb/qYC4BiWWB0vZ+7TbdvYUCeL23zpwCfbg==,
       }
 
-  shreds@0.1.3:
+  shreds@0.2.1:
     resolution:
       {
-        integrity: sha512-V/3cjho4AYUVqPOIYvUR1d7iSco0bMlVnMhjJ05jShmb3h/naHm/43ehmqf/4wKkttEyyK3e5K9PiB5V8evHHg==,
+        integrity: sha512-qrvEDDP35wrYHLQQHsWiOsDCQ6mlZALujiOYnPDxsy9eqz0w53HE8K72+WHWs3hmem2mtuKViNC5Kxc7ObnRrg==,
       }
-  shreds@0.1.7-beta.2:
-    resolution: {integrity: sha512-TYfkXiNW098YQR3CmvvBspr4jQns6W/qdSChegvommfyiLk4L9vUck3vLhKFrgkYn7qiLQL5KYAZ6CjAmxoCXg==}
     peerDependencies:
-      viem: ^2.31.6
+      viem: ^2.31.7
 
   side-channel@1.0.4:
     resolution:
@@ -24316,7 +24314,7 @@ snapshots:
       "@shikijs/vscode-textmate": 10.0.2
       "@types/hast": 3.0.4
 
-  shreds@0.1.7-beta.2(viem@2.31.4(typescript@5.8.3)(zod@3.23.8)):
+  shreds@0.2.1(viem@2.31.4(typescript@5.8.3)(zod@3.23.8)):
     dependencies:
       viem: 2.31.4(typescript@5.8.3)(zod@3.23.8)
 

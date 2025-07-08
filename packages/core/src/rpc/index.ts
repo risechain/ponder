@@ -15,12 +15,7 @@ import {
   type GetLogsRetryHelperParameters,
   getLogsRetryHelper,
 } from "@ponder/utils";
-import {
-  type Shred,
-  type ShredsWebSocketTransport,
-  formatShred,
-  shredsWebSocket,
-} from "shreds/viem";
+import { type RpcShred, type Shred, formatShred } from "shreds/viem";
 import {
   http,
   type EIP1193Parameters,
@@ -33,6 +28,7 @@ import {
   type PublicRpcSchema,
   type RpcError,
   TimeoutError,
+  type WebSocketTransport,
   isHex,
   webSocket,
 } from "viem";
@@ -247,13 +243,13 @@ export const createRpc = ({
     ];
   }
 
-  let wsTransport: ReturnType<ShredsWebSocketTransport> | undefined = undefined;
+  let wsTransport: ReturnType<WebSocketTransport> | undefined = undefined;
 
   if (typeof chain.ws === "string") {
     const protocol = new url.URL(chain.ws).protocol;
 
     if (protocol === "wss:" || protocol === "ws:") {
-      wsTransport = shredsWebSocket(chain.ws, {
+      wsTransport = webSocket(chain.ws, {
         keepAlive: true,
         reconnect: false,
       })({
@@ -623,8 +619,8 @@ export const createRpc = ({
 
       for (let i = 0; i <= RETRY_COUNT; ++i) {
         try {
-          await wsTransport.value!.riseSubscribe({
-            params: [],
+          await wsTransport.value!.subscribe({
+            params: ["shreds"] as never,
             onData: async (data) => {
               if (!data) {
                 common.logger.warn({
@@ -635,7 +631,13 @@ export const createRpc = ({
                 data.error === undefined &&
                 data.result !== undefined
               ) {
-                const shred = formatShred(data.result);
+                const rpcShred = data.result as RpcShred;
+                const shred = formatShred({
+                  ...rpcShred,
+                  transactions: rpcShred.transactions.filter(
+                    (tx) => !("Deposit" in tx.receipt),
+                  ),
+                });
                 onShred(shred);
 
                 if (lastBlockNumber === 0n) {

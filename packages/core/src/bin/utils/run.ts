@@ -507,7 +507,9 @@ export async function run({
 
             const result = await indexing.processEvents({
               events: events.filter(
-                (evt) => event.fillGap || evt.type !== "log",
+                (evt) =>
+                  event.fillGap ||
+                  (evt.type !== "log" && evt.type !== "transaction"),
               ), // We process logs in shreds
               db: realtimeIndexingStore,
             });
