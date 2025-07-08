@@ -818,9 +818,14 @@ export const createSync = async (params: {
               hash: numberToHex(event.shred.blockNumber),
             } as InternalBlock,
             logs: event.logs.map((log) => syncLogToInternal({ log })),
+            transactions: event.transactions.map((transaction) =>
+              syncTransactionToInternal({ transaction }),
+            ),
+            transactionReceipts: event.transactionReceipts.map(
+              (transactionReceipt) =>
+                syncTransactionReceiptToInternal({ transactionReceipt }),
+            ),
             traces: [],
-            transactionReceipts: [],
-            transactions: [],
           },
           childAddresses: realtimeSync.childAddresses,
         });
@@ -834,7 +839,7 @@ export const createSync = async (params: {
 
         params.common.logger.debug({
           service: "sync",
-          msg: `Decoded ${events.length} '${chain.name}' events for shred ${event.shred.shredIndex} in block ${event.shred.blockNumber}`,
+          msg: `Decoded ${decodedEvents.length} '${chain.name}' events for shred ${event.shred.shredIndex} in block ${event.shred.blockNumber}`,
         });
 
         if (params.ordering === "multichain") {
