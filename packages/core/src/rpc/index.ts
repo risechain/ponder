@@ -27,6 +27,7 @@ import {
   ParseRpcError,
   type PublicRpcSchema,
   type RpcError,
+  SocketClosedError,
   TimeoutError,
   type WebSocketTransport,
   isHex,
@@ -629,7 +630,7 @@ export const createRpc = ({
               if (!data) {
                 common.logger.warn({
                   service: "rpc",
-                  msg: "Missing data from rise_subscribe",
+                  msg: "Missing data from eth_subscribe",
                 });
               } else if (
                 data.error === undefined &&
@@ -698,7 +699,12 @@ export const createRpc = ({
             onError: async (_error) => {
               const error = _error as Error;
 
-              if (webSocketErrorCount === RETRY_COUNT) {
+              if (error instanceof SocketClosedError) {
+                common.logger.debug({
+                  service: "rpc",
+                  msg: `WebSocket connection closed for '${chain.name}' shred subscription.`,
+                });
+              } else if (webSocketErrorCount === RETRY_COUNT) {
                 common.logger.fatal({
                   service: "rpc",
                   msg: `Failed '${chain.name}' shreds subscription after ${webSocketErrorCount + 1} consecutive errors.`,
@@ -731,7 +737,7 @@ export const createRpc = ({
           if (i === RETRY_COUNT) {
             common.logger.warn({
               service: "rpc",
-              msg: `Failed '${chain.name}' rise_subscribe request after ${i + 1} consecutive errors. Exiting`,
+              msg: `Failed '${chain.name}' eth_subscribe request after ${i + 1} consecutive errors. Exiting`,
               error,
             });
 
@@ -740,7 +746,7 @@ export const createRpc = ({
             const duration = BASE_DURATION * 2 ** i;
             common.logger.debug({
               service: "rpc",
-              msg: `Failed '${chain.name}' rise_subscribe request, retrying after ${duration} milliseconds`,
+              msg: `Failed '${chain.name}' eth_subscribe request, retrying after ${duration} milliseconds`,
               error,
             });
             await wait(duration);
