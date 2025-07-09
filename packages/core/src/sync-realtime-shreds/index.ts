@@ -1233,6 +1233,7 @@ export const createRealtimeSyncShreds = (
         })),
         maxFeePerGas: numberToHex(_shredTx.maxFeePerGas ?? 0n),
         maxPriorityFeePerGas: numberToHex(_shredTx.maxPriorityFeePerGas ?? 0n),
+        gasPrice: _shredTx.gasPrice as never,
       } satisfies SyncTransaction;
 
       transactions.push(transaction);
