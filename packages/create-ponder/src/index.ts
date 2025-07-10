@@ -11,12 +11,10 @@ import { oraPromise } from "ora";
 import pico from "picocolors";
 import prettier from "prettier";
 import { default as prompts } from "prompts";
-// @ts-ignore
+import corePackageJson from "../../core/package.json" assert { type: "json" };
 import eslintConfigPackageJson from "../../eslint-config-ponder/package.json" assert {
   type: "json",
 };
-// NOTE: This is a workaround for tsconfig `rootDir` nonsense.
-// @ts-ignore
 import rootPackageJson from "../package.json" assert { type: "json" };
 import { fromEtherscan } from "./etherscan.js";
 import { getPackageManager } from "./helpers/getPackageManager.js";
@@ -434,7 +432,7 @@ export async function run({
   // Create package.json for project
   const packageJson = await fs.readJSON(path.join(projectPath, "package.json"));
   packageJson.name = projectName;
-  packageJson.dependencies["ponder-rise"] = `^${rootPackageJson.version}`;
+  packageJson.dependencies["ponder-rise"] = `^${corePackageJson.version}`;
   packageJson.devDependencies["eslint-config-ponder"] =
     `^${eslintConfigPackageJson.version}`;
   await fs.writeFile(
