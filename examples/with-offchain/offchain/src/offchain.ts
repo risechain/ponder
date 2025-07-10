@@ -2,7 +2,7 @@ import { json, numeric, pgSchema } from "drizzle-orm/pg-core";
 
 export const offchainSchema = pgSchema("offchain");
 
-// Note: right now it's impossible to import from "ponder" because
+// Note: right now it's impossible to import from "ponder-rise" because
 // it doesn't have a cjs export (which drizzle-kit uses).
 //
 // However, the ponder bigint and hex columns are simple aliases

@@ -349,7 +349,7 @@ export async function run({
         Object.values(config.contracts).some((c) => Array.isArray(c.abi))
           ? ", mergeAbis"
           : ""
-      } } from "ponder";
+      } } from "ponder-rise";
 
       ${Object.values(config.contracts)
         .flatMap((c) => c.abi)

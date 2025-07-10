@@ -1,4 +1,4 @@
-import { onchainTable } from "ponder";
+import { onchainTable } from "ponder-rise";
 
 export const file = onchainTable("file", (t) => ({
   name: t.text().primaryKey(),

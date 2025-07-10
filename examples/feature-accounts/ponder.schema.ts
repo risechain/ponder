@@ -1,4 +1,4 @@
-import { onchainTable } from "ponder";
+import { onchainTable } from "ponder-rise";
 
 export const transactionEvents = onchainTable("transaction_events", (t) => ({
   to: t.hex().primaryKey(),

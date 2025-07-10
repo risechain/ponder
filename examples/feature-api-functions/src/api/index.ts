@@ -1,7 +1,7 @@
 import { db } from "ponder:api";
 import schema from "ponder:schema";
 import { Hono } from "hono";
-import { count, desc, eq, graphql, or, replaceBigInts } from "ponder";
+import { count, desc, eq, graphql, or, replaceBigInts } from "ponder-rise";
 import { formatEther, getAddress } from "viem";
 
 const app = new Hono();

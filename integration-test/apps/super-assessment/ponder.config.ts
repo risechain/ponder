@@ -1,4 +1,4 @@
-import { createConfig, factory } from "ponder";
+import { createConfig, factory } from "ponder-rise";
 import seedrandom from "seedrandom";
 import { type Address, parseAbi, parseAbiItem, zeroAddress } from "viem";
 

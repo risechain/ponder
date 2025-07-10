@@ -1,4 +1,4 @@
-import { createConfig } from "ponder";
+import { createConfig } from "ponder-rise";
 import { erc4626ABI } from "./abis/erc4626ABI";
 
 export default createConfig({
