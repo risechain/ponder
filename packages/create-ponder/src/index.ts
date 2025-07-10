@@ -12,7 +12,7 @@ import pico from "picocolors";
 import prettier from "prettier";
 import { default as prompts } from "prompts";
 // @ts-ignore
-import eslintConfigPackageJson from "../eslint-config-ponder/package.json" assert {
+import eslintConfigPackageJson from "../../eslint-config-ponder/package.json" assert {
   type: "json",
 };
 // NOTE: This is a workaround for tsconfig `rootDir` nonsense.
