@@ -1,5 +1,5 @@
 declare module "ponder:registry" {
-  import type { Virtual } from "ponder";
+  import type { Virtual } from "ponder-rise";
   type config = typeof import("ponder:internal").config;
   type schema = typeof import("ponder:internal").schema;
 
@@ -25,7 +25,7 @@ declare module "ponder:schema" {
 }
 
 declare module "ponder:api" {
-  import type { ReadonlyDrizzle } from "ponder";
+  import type { ReadonlyDrizzle } from "ponder-rise";
   import type { PublicClient } from "viem";
 
   type schema = typeof import("ponder:internal").schema;

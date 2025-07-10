@@ -1,4 +1,4 @@
-import { index, onchainTable, primaryKey, relations } from "ponder";
+import { index, onchainTable, primaryKey, relations } from "ponder-rise";
 
 export const swap = onchainTable(
   "swap",

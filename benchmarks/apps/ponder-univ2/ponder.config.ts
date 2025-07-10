@@ -1,4 +1,4 @@
-import { createConfig, factory } from "ponder";
+import { createConfig, factory } from "ponder-rise";
 import { http, getAbiItem } from "viem";
 
 import { FactoryAbi } from "./abis/FactoryAbi";

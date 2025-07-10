@@ -1,4 +1,4 @@
-/// <reference types="ponder/virtual" />
+/// <reference types="ponder-rise/virtual" />
 
 declare module "ponder:internal" {
   const config: typeof import("./ponder.config.ts");

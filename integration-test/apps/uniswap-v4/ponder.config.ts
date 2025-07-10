@@ -1,4 +1,4 @@
-import { createConfig } from "ponder";
+import { createConfig } from "ponder-rise";
 
 import { PoolManagerAbi } from "./abis/PoolManager";
 

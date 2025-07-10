@@ -1,4 +1,4 @@
-import { onchainTable } from "ponder";
+import { onchainTable } from "ponder-rise";
 
 export const tokenPaid = onchainTable("token_paid", (t) => ({
   address: t.hex().primaryKey(),

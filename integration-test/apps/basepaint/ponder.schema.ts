@@ -1,4 +1,4 @@
-import { onchainTable, primaryKey } from "ponder";
+import { onchainTable, primaryKey } from "ponder-rise";
 
 export const global = onchainTable("global", (p) => ({
   // TODO(kyle) default

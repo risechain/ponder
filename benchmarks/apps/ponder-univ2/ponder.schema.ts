@@ -1,4 +1,4 @@
-import { onchainTable } from "ponder";
+import { onchainTable } from "ponder-rise";
 
 export const factory = onchainTable("uniswap_factory", (t) => ({
   id: t.text().primaryKey(),

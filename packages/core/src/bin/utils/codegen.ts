@@ -2,7 +2,7 @@ import { writeFileSync } from "node:fs";
 import path from "node:path";
 import type { Common } from "@/internal/common.js";
 
-export const ponderEnv = `/// <reference types="ponder/virtual" />
+export const ponderEnv = `/// <reference types="ponder-rise/virtual" />
 
 declare module "ponder:internal" {
   const config: typeof import("./ponder.config.ts");

@@ -1,4 +1,4 @@
-import { createConfig } from "ponder";
+import { createConfig } from "ponder-rise";
 import { multicall3Abi } from "viem";
 import { mainnet } from "viem/chains";
 

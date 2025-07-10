@@ -1,4 +1,4 @@
-import { index, onchainTable, primaryKey, relations } from "ponder";
+import { index, onchainTable, primaryKey, relations } from "ponder-rise";
 
 export const account = onchainTable("account", (t) => ({
   address: t.hex().primaryKey(),

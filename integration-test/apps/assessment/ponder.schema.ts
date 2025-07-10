@@ -1,4 +1,4 @@
-import { onchainTable } from "ponder";
+import { onchainTable } from "ponder-rise";
 
 export const state = onchainTable("state", (p) => ({
   chainId: p.integer().primaryKey(),
