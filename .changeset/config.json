@@ -5,7 +5,7 @@
     { "repo": "risechain/ponder-rise" }
   ],
   "commit": false,
-  "fixed": [["ponder-rise"]],
+  "fixed": [["ponder-rise", "create-ponder-rise"]],
   "ignore": [
     "ponder-docs",
     "ponder-examples-feature-accounts",

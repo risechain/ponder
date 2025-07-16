@@ -430,7 +430,7 @@ export async function run({
   // Create package.json for project
   const packageJson = await fs.readJSON(path.join(projectPath, "package.json"));
   packageJson.name = projectName;
-  packageJson.dependencies.ponder = `^${rootPackageJson.version}`;
+  packageJson.dependencies["ponder-rise"] = `^${rootPackageJson.version}`;
   packageJson.devDependencies["eslint-config-ponder"] =
     `^${rootPackageJson.version}`;
   await fs.writeFile(
