@@ -919,8 +919,8 @@ importers:
         specifier: ^7.7.1
         version: 7.7.1
       shreds:
-        specifier: 0.2.2-beta.1
-        version: 0.2.2-beta.1(viem@2.31.4(typescript@5.8.3)(zod@3.23.8))
+        specifier: 0.2.2
+        version: 0.2.2(viem@2.31.4(typescript@5.8.3)(zod@3.23.8))
       stacktrace-parser:
         specifier: ^0.1.10
         version: 0.1.10
@@ -8595,8 +8595,8 @@ packages:
   shiki@1.29.2:
     resolution: {integrity: sha512-njXuliz/cP+67jU2hukkxCNuH1yUi4QfdZZY+sMr5PPrIyXSu5iTb/qYC4BiWWB0vZ+7TbdvYUCeL23zpwCfbg==}
 
-  shreds@0.2.2-beta.1:
-    resolution: {integrity: sha512-at/37pENm/IZWnWmu52CMfWLsBOWtzicvhATkN+wN9VnM1ckqodY3t9mofkZ23XhYOokD4TNL3FXsuBPIr8kWA==}
+  shreds@0.2.2:
+    resolution: {integrity: sha512-eaw9yewVaZcLUF+cNTj38oejIJrCChoKlzlwxVGgz+NbiQFY/5MdUR58hAtYRWfmGsL/B+1ytPn3zKuhTyD1KA==}
     peerDependencies:
       viem: ^2.31.7
 
@@ -18355,7 +18355,7 @@ snapshots:
       '@shikijs/vscode-textmate': 10.0.2
       '@types/hast': 3.0.4
 
-  shreds@0.2.2-beta.1(viem@2.31.4(typescript@5.8.3)(zod@3.23.8)):
+  shreds@0.2.2(viem@2.31.4(typescript@5.8.3)(zod@3.23.8)):
     dependencies:
       viem: 2.31.4(typescript@5.8.3)(zod@3.23.8)
 

@@ -1228,7 +1228,7 @@ export const createRealtimeSyncShreds = (
         type: _shredTx.typeHex as never,
         value: numberToHex(_shredTx.value),
         accessList: _shredTx.accessList ?? [],
-        chainId: numberToHex(_shredTx.chainId),
+        chainId: numberToHex(_shredTx.chainId!),
         authorizationList: _shredTx.authorizationList?.map((a) => ({
           chainId: numberToHex(a.chainId),
           nonce: numberToHex(a.nonce),
@@ -1496,11 +1496,11 @@ export const createRealtimeSyncShreds = (
         block: blockRes,
       };
     } else {
-      args.common.logger.fatal({
+      // TODO: handle block reorgs
+      args.common.logger.warn({
         service: "realtime",
-        msg: `Shred rewind at block ${shred.blockNumber}, exiting.`,
+        msg: `Block reorg at block ${shred.blockNumber}.`,
       });
-      process.emit("SIGINT");
     }
 
     return { shred: reconcileShred(filteredShred) };

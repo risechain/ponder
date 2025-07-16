@@ -3,18 +3,18 @@ import { erc20ABI } from "./abis/erc20ABI";
 
 export default createConfig({
   chains: {
-    mainnet: {
-      id: 1,
-      rpc: process.env.PONDER_RPC_URL_1,
+    riseTestnet: {
+      id: 11155931,
+      rpc: "https://testnet.riselabs.xyz",
+      ws: "wss://testnet.riselabs.xyz/ws",
     },
   },
   contracts: {
     ERC20: {
-      chain: "mainnet",
+      chain: "riseTestnet",
       abi: erc20ABI,
-      address: "0x32353A6C91143bfd6C7d363B546e62a9A2489A20",
-      startBlock: 13142655,
-      endBlock: 13150000,
+      address: "0x8A93d247134d91e0de6f96547cB0204e5BE8e5D8",
+      startBlock: "latest",
     },
   },
 });
