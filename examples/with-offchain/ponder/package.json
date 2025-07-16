@@ -14,7 +14,7 @@
     "drizzle-orm": "0.41.0",
     "hono": "^4.5.0",
     "pg": "^8.11.3",
-    "ponder": "workspace:*",
+    "ponder-rise": "workspace:*",
     "viem": "^2.21.3"
   },
   "devDependencies": {

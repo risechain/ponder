@@ -633,7 +633,7 @@ export const createRpc = ({
                 data.result !== undefined
               ) {
                 const rpcShred = data.result as RpcShred;
-                const shred = formatShred({
+                const shred = await formatShred({
                   ...rpcShred,
                   transactions: rpcShred.transactions.filter(
                     (tx) => !("Deposit" in tx.receipt),

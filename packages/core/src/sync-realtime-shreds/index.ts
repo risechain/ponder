@@ -52,10 +52,8 @@ import type { Shred } from "shreds/viem";
 import {
   type Address,
   type Hash,
-  type OneOf,
   hexToNumber,
   numberToHex,
-  zeroAddress,
   zeroHash,
 } from "viem";
 import {
@@ -1212,12 +1210,12 @@ export const createRealtimeSyncShreds = (
       // Create SyncTransaction based on transaction type
       // let transaction: SyncTransaction;
 
-      const _shredTx = shredTx as OneOf<typeof shredTx>;
+      const _shredTx = shredTx as typeof shredTx;
 
       const transaction = {
         blockHash: numberToHex(shred.blockNumber),
         blockNumber: numberToHex(shred.blockNumber),
-        from: zeroAddress, // TODO (blocked)
+        from: _shredTx.from,
         gas: numberToHex(_shredTx.gas),
         hash: _shredTx.hash,
         input: _shredTx.input,
@@ -1250,12 +1248,12 @@ export const createRealtimeSyncShreds = (
       const receipt: SyncTransactionReceipt = {
         blockHash: numberToHex(shred.blockNumber),
         blockNumber: numberToHex(shred.blockNumber),
-        contractAddress: null, // TODO (blocked)
+        contractAddress: null, // NOTE: not implemented in Shred
         cumulativeGasUsed: numberToHex(_shredTx.cumulativeGasUsed),
-        effectiveGasPrice: numberToHex(_shredTx.gasPrice ?? 0n), // TODO (blocked)
-        from: zeroAddress, // TODO (blocked)
+        effectiveGasPrice: numberToHex(_shredTx.gasPrice ?? 0n), // NOTE: not implemented in Shred
+        from: _shredTx.from,
         gasUsed: numberToHex(_shredTx.cumulativeGasUsed),
-        logsBloom: zeroLogsBloom, // TODO (blocked)
+        logsBloom: zeroLogsBloom, // NOTE: not implemented in Shred
         status: _shredTx.status === "success" ? "0x1" : "0x0",
         to: _shredTx.to,
         transactionHash: _shredTx.hash,
