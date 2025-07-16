@@ -1,16 +1,11 @@
 {
   "$schema": "https://unpkg.com/@changesets/config@2.3.0/schema.json",
-  "changelog": ["@changesets/changelog-github", { "repo": "ponder-sh/ponder" }],
-  "commit": false,
-  "fixed": [
-    [
-      "ponder",
-      "create-ponder",
-      "eslint-config-ponder",
-      "@ponder/client",
-      "@ponder/react"
-    ]
+  "changelog": [
+    "@changesets/changelog-github",
+    { "repo": "risechain/ponder-rise" }
   ],
+  "commit": false,
+  "fixed": [["ponder-rise"]],
   "ignore": [
     "ponder-docs",
     "ponder-examples-feature-accounts",
