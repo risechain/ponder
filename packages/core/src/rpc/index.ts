@@ -3,6 +3,7 @@ import type { Common } from "@/internal/common.js";
 import type { Chain, SyncBlock, SyncBlockHeader } from "@/internal/types.js";
 import type { RealtimeSyncShreds } from "@/sync-realtime-shreds/index.js";
 import type { RealtimeSync } from "@/sync-realtime/index.js";
+import { mutex } from "@/utils/mutex.js";
 import { createQueue } from "@/utils/queue.js";
 import {
   _eth_getBlockByHash,
@@ -622,7 +623,7 @@ export const createRpc = ({
         try {
           await wsTransport.value!.subscribe({
             params: ["shreds"] as never,
-            onData: async (data) => {
+            onData: mutex(async (data) => {
               if (!data) {
                 common.logger.warn({
                   service: "rpc",
@@ -633,12 +634,7 @@ export const createRpc = ({
                 data.result !== undefined
               ) {
                 const rpcShred = data.result as RpcShred;
-                const shred = await formatShred({
-                  ...rpcShred,
-                  transactions: rpcShred.transactions.filter(
-                    (tx) => !("Deposit" in tx.receipt),
-                  ),
-                });
+                const shred = await formatShred(rpcShred, chain.id);
                 onShred(shred);
 
                 if (lastBlockNumber === 0n) {
@@ -659,7 +655,7 @@ export const createRpc = ({
                 } else {
                   common.logger.warn({
                     service: "rpc",
-                    msg: `block reorg detected at block ${shred.blockNumber}. new block: ${shred.blockNumber}`,
+                    msg: `block reorg detected at block ${lastBlockNumber}. new block: ${shred.blockNumber}`,
                   });
                 }
 
@@ -691,7 +687,7 @@ export const createRpc = ({
 
                 webSocketErrorCount += 1;
               }
-            },
+            }),
             onError: async (_error) => {
               const error = _error as Error;
 
