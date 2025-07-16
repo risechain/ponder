@@ -190,6 +190,7 @@ export const createRealtimeIndexingStore = ({
                   }
                 })
                 .then(onFulfilled, onRejected),
+            //@ts-ignore
             catch: (onRejected) => inner.then(undefined, onRejected),
             finally: (onFinally) =>
               inner.then(

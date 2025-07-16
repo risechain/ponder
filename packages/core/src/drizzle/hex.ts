@@ -24,6 +24,7 @@ export type PgHexBuilderInitial<TName extends string> = PgHexBuilder<{
 export class PgHexBuilder<
   T extends ColumnBuilderBaseConfig<"string", "PgHex">,
 > extends PgColumnBuilder<T> {
+  //@ts-ignore
   static readonly [entityKind]: string = "PgHexBuilder";
 
   constructor(name: T["name"]) {
@@ -45,6 +46,7 @@ export class PgHexBuilder<
 export class PgHex<
   T extends ColumnBaseConfig<"string", "PgHex">,
 > extends PgColumn<T> {
+  //@ts-ignore
   static readonly [entityKind]: string = "PgHex";
 
   getSQLType(): string {

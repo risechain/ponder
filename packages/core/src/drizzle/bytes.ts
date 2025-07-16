@@ -24,6 +24,7 @@ export type PgBytesBuilderInitial<TName extends string> = PgBytesBuilder<{
 export class PgBytesBuilder<
   T extends ColumnBuilderBaseConfig<"buffer", "PgBytes">,
 > extends PgColumnBuilder<T> {
+  //@ts-ignore
   static readonly [entityKind]: string = "PgBytesBuilder";
 
   constructor(name: T["name"]) {
@@ -52,6 +53,7 @@ export class PgBytesBuilder<
 export class PgBytes<
   T extends ColumnBaseConfig<"buffer", "PgBytes">,
 > extends PgColumn<T> {
+  //@ts-ignore
   static readonly [entityKind]: string = "PgBytes";
 
   getSQLType(): string {

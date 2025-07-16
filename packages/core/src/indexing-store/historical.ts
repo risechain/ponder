@@ -216,6 +216,7 @@ export const createHistoricalIndexingStore = ({
                 return Promise.resolve(result).then(onFulfilled, onRejected);
               }
             },
+            //@ts-ignore
             catch: (onRejected) => inner.then(undefined, onRejected),
             finally: (onFinally) =>
               inner.then(

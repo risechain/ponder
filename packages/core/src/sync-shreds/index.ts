@@ -4,6 +4,7 @@ import type {
   CrashRecoveryCheckpoint,
   Event,
   Factory,
+  FactoryId,
   Filter,
   IndexingBuild,
   InternalBlock,
@@ -73,8 +74,8 @@ import {
   syncTraceToInternal,
   syncTransactionReceiptToInternal,
   syncTransactionToInternal,
-} from "./events.js";
-import { isAddressFactory } from "./filter.js";
+} from "../sync/events.js";
+import { isAddressFactory } from "../sync/filter.js";
 
 export type Sync = {
   getEvents(): EventGenerator;
@@ -270,7 +271,7 @@ export const createSync = async (params: {
       syncProgress: SyncProgress;
       historicalSync: HistoricalSync;
       realtimeSync: RealtimeSyncShreds | undefined;
-      childAddresses: Map<Factory, Map<Address, number>>;
+      childAddresses: Map<FactoryId, Map<Address, number>>;
     }
   >();
 
@@ -380,6 +381,8 @@ export const createSync = async (params: {
             }
           }
 
+          // Removes events that have a checkpoint earlier than (or equal to)
+          // the crash recovery checkpoint.
           async function* sortCrashRecoveryEvents(
             eventGenerator: AsyncGenerator<{
               events: Event[];
@@ -387,12 +390,10 @@ export const createSync = async (params: {
             }>,
           ) {
             for await (const { events, checkpoint } of eventGenerator) {
-              // Sort out any events before the crash recovery checkpoint
-
               if (
                 crashRecoveryCheckpoint &&
                 events.length > 0 &&
-                events[0]!.checkpoint < crashRecoveryCheckpoint
+                events[0]!.checkpoint <= crashRecoveryCheckpoint
               ) {
                 const [, right] = partition(
                   events,
@@ -895,7 +896,7 @@ export const createSync = async (params: {
         });
       }
 
-      const childAddresses: Map<Factory, Map<Address, number>> = new Map();
+      const childAddresses: Map<FactoryId, Map<Address, number>> = new Map();
       for (const source of sources) {
         switch (source.filter.type) {
           case "log":
@@ -903,7 +904,7 @@ export const createSync = async (params: {
               const _childAddresses = await params.syncStore.getChildAddresses({
                 factory: source.filter.address,
               });
-              childAddresses.set(source.filter.address, _childAddresses);
+              childAddresses.set(source.filter.address.id, _childAddresses);
             }
             break;
           case "transaction":
@@ -913,14 +914,14 @@ export const createSync = async (params: {
               const _childAddresses = await params.syncStore.getChildAddresses({
                 factory: source.filter.fromAddress,
               });
-              childAddresses.set(source.filter.fromAddress, _childAddresses);
+              childAddresses.set(source.filter.fromAddress.id, _childAddresses);
             }
 
             if (isAddressFactory(source.filter.toAddress)) {
               const _childAddresses = await params.syncStore.getChildAddresses({
                 factory: source.filter.toAddress,
               });
-              childAddresses.set(source.filter.toAddress, _childAddresses);
+              childAddresses.set(source.filter.toAddress.id, _childAddresses);
             }
 
             break;
@@ -1096,14 +1097,30 @@ export const createSync = async (params: {
           });
 
           rpc.riseSubscribe({
-            onError(error) {
-              realtimeSync.onError(error);
-            },
             onShred: async (shred) => {
+              const arrivalMs = Date.now();
+
+              const endClock = startClock();
               const syncResult = await realtimeSync.syncShred(shred);
-              // TODO: measure metrics
+
+              if (syncResult.shred.type === "accepted") {
+                syncResult.shred.shredPromise.then(() => {
+                  params.common.metrics.ponder_realtime_block_arrival_latency.observe(
+                    { chain: chain.name },
+                    arrivalMs - Number(shred.blockTimestamp) * 1_000,
+                  );
+
+                  params.common.metrics.ponder_realtime_latency.observe(
+                    { chain: chain.name },
+                    endClock(),
+                  );
+                });
+              }
 
               return syncResult;
+            },
+            onError: (error) => {
+              realtimeSync.onError(error);
             },
           });
         }
@@ -1306,7 +1323,6 @@ export const getPerChainOnRealtimeSyncShredsEvent = ({
       }
 
       case "shred": {
-        //TODO
         return;
       }
 
@@ -1323,7 +1339,7 @@ export async function* getLocalEventGenerator(params: {
   syncStore: SyncStore;
   sources: Source[];
   localSyncGenerator: AsyncGenerator<number>;
-  childAddresses: Map<Factory, Map<Address, number>>;
+  childAddresses: Map<FactoryId, Map<Address, number>>;
   from: string;
   to: string;
   limit: number;
