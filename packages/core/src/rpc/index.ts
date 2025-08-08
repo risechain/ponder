@@ -1,8 +1,6 @@
 import url from "node:url";
 import type { Common } from "@/internal/common.js";
 import type { Chain, SyncBlock, SyncBlockHeader } from "@/internal/types.js";
-import type { RealtimeSyncShreds } from "@/sync-realtime-shreds/index.js";
-import type { RealtimeSync } from "@/sync-realtime/index.js";
 import { mutex } from "@/utils/mutex.js";
 import { createQueue } from "@/utils/queue.js";
 import {
@@ -51,7 +49,7 @@ export type Rpc = {
     polling?: boolean;
   }) => Promise<void>;
   riseSubscribe: (params: {
-    onShred: (shred: Shred) => ReturnType<RealtimeSyncShreds["syncShred"]>;
+    onShred: (shred: Shred) => Promise<boolean>;
     onError: (error: Error) => void;
   }) => void;
   unsubscribe: () => Promise<void>;

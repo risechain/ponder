@@ -127,7 +127,6 @@ export const createRealtimeSync = (
   let unfinalizedBlocks: LightBlock[] = [];
   let fetchAndReconcileLatestBlockErrorCount = 0;
   let reconcileBlockErrorCount = 0;
-  const currentBlockShreds: Shred[] = [];
 
   const factories: Factory[] = [];
   const logFilters: LogFilter[] = [];
